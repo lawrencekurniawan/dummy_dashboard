@@ -88,16 +88,14 @@ shinyServer(function(input, output) {
   ## snapshot
   ########################################################################################################
   
-  ss_period.dt <- eventReactive(
-    input$btn_snap, {
+  ss_period.dt <- reactive({
       portfolio %>%
         filter(date >= ymd(input$snap_select_date[[1]]),
                date <= ymd(input$snap_select_date[[2]]))
     }
   )
   
-  ss_instrument.dt <- eventReactive(
-    input$btn_snap, {
+  ss_instrument.dt <- reactive({
       if(length(input$snap_select_instrument) == length(instrument_list)) {
         ss_period.dt()
       } else {
@@ -107,8 +105,7 @@ shinyServer(function(input, output) {
     }
   )
   
-  hyphenated_selected_metrics <- eventReactive(
-    input$btn_snap, {
+  hyphenated_selected_metrics <- reactive({
       group_hyphenate(input$snap_select_metric)
     }
   )
@@ -123,8 +120,7 @@ shinyServer(function(input, output) {
     }
   )
   
-  ss_spark.dt <- eventReactive(
-    input$btn_snap, {
+  ss_spark.dt <- reactive({
       req(input$snap_select_metric)
       validate(
         need(length(input$snap_select_metric) > 1, "Need 2 or more metrics selected")
@@ -159,21 +155,18 @@ shinyServer(function(input, output) {
   ####### Metric Explorer
   ################################################################################################
   
-  hyphenated_selected_me_metric <- eventReactive(
-    input$btn_me, {
+  hyphenated_selected_me_metric <- reactive({
       group_hyphenate(input$me_select_metric)
     }
   )
   
-  formula_filtered <- eventReactive(
-    input$btn_me, {
+  formula_filtered <- reactive({
       formula_rds %>% 
         filter(metric == hyphenated_selected_me_metric())
     }
   ) 
   
-  m_expl_metric_instrument_for_chart.dt <- eventReactive(
-    input$btn_me, {
+  m_expl_metric_instrument_for_chart.dt <- reactive({
       if(hyphenated_selected_me_metric() %in% ratio_metrics) {
         portfolio %>%
           filter(instrument %in% input$me_select_instrument) 
@@ -185,8 +178,7 @@ shinyServer(function(input, output) {
       }
     })
   
-  m_expl_metric_period.dt <- eventReactive(
-    input$btn_me, {
+  m_expl_metric_period.dt <- reactive({
       if(hyphenated_selected_me_metric() %in% ratio_metrics) {
         portfolio %>%
           filter(instrument %in% input$me_select_instrument,
@@ -201,16 +193,14 @@ shinyServer(function(input, output) {
       }
     })
   
-  m_expl_mp_wide.dt <- eventReactive(
-    input$btn_me, {
+  m_expl_mp_wide.dt <- reactive({
       m_expl_metric_period.dt() %>%
         dcast(instrument ~ date, value.var = hyphenated_selected_me_metric())#, fun.aggregate = mean) #fun.aggregate aggregates the values if there are multiple values in 
     }) #%>%
   #coalesce(., list(0L)) #remove all NAs
   
   # summarise all the ratio metrics using 'mean' instead of sum
-    m_expl_instrument_total.dt <- eventReactive(
-      input$btn_me, {
+    m_expl_instrument_total.dt <- reactive({
         if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           #m_expl_metric_period.dt() %>%
           #  group_by(instrument) %>%
@@ -234,8 +224,7 @@ shinyServer(function(input, output) {
         }
       })
     
-    m_expl_wide_total.dt <- eventReactive( #creates df with columns: instrument, Average, date1, date2, ...., date n.
-      input$btn_me, {
+    m_expl_wide_total.dt <- reactive({ #creates df with columns: instrument, Average, date1, date2, ...., date n.
         if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           m_expl_mp_wide.dt() %>%
             inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
@@ -247,8 +236,7 @@ shinyServer(function(input, output) {
         }
       }) 
     
-    m_expl_ratio_metrics_average_by_date <- eventReactive( #creates df with columns: date, {constituent1}, {constituent2}, ...., Average, instrument (filled with "Average" values)
-      input$btn_me, {
+    m_expl_ratio_metrics_average_by_date <- reactive({ #creates df with columns: date, {constituent1}, {constituent2}, ...., Average, instrument (filled with "Average" values)
         if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           m_expl_metric_period.dt() %>%
             filter(instrument %in% input$me_select_instrument) %>% #only calculate the dately average for selected cities
@@ -266,8 +254,7 @@ shinyServer(function(input, output) {
         }
     })
     
-    m_expl_ratio_metrics_average_final_value <- eventReactive( #creates 1x1 df with columns: instrument, Average
-      input$btn_me, {
+    m_expl_ratio_metrics_average_final_value <- reactive({ #creates 1x1 df with columns: instrument, Average
         if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           m_expl_ratio_metrics_average_by_date() %>%
             group_by(instrument) %>%
@@ -285,8 +272,7 @@ shinyServer(function(input, output) {
         }
       })
     
-    m_expl_nat_total.dt <- eventReactive(
-      input$btn_me, {
+    m_expl_nat_total.dt <- reactive({
         if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           m_expl_ratio_metrics_average_by_date() %>%
             dcast(instrument ~ date, value.var = "Average") %>%
@@ -304,8 +290,7 @@ shinyServer(function(input, output) {
         }
       })
   
-  m_expl_final.dt <- eventReactive(
-    input$btn_me, {
+  m_expl_final.dt <- reactive({
       m_expl_wide_total.dt() %>%
         dplyr::union_all(m_expl_nat_total.dt()) %>%
         rename(Instrument = instrument)

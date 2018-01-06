@@ -12,7 +12,7 @@ dashboardPage(
       hr(),
       div(
         style = "padding: 10px; width = 200px;",
-        strong(p(style = "color:white;", "By: Lawrence Kurniawan Wong")),
+        strong(p(style = "color:white;", "Lawrence Kurniawan Wong")),
         p(style = "color:white;", "lawrencekurniawan@gmail.com")
       )
     )
@@ -33,9 +33,7 @@ dashboardPage(
                              fluidRow(
                                column(width = 4, uiOutput('snap_select_metric')),
                                column(width = 4, uiOutput('snap_select_instrument')),
-                               column(width = 4, uiOutput('snap_select_date'))),
-                             fluidRow(
-                               column(width = 12, actionButton("btn_snap", "Go")))
+                               column(width = 4, uiOutput('snap_select_date')))
                         ),
                         tabPanel("Download"
                                  , p("Click the button below to get the raw data from currently shown information.")
@@ -70,9 +68,6 @@ dashboardPage(
                                   column(width = 4, uiOutput('me_select_metric')),
                                   column(width = 4, uiOutput('me_select_instrument')),
                                   column(width = 4, uiOutput('me_select_date'))
-                                ),
-                                fluidRow(
-                                  column(width = 12, actionButton("btn_me", "Go"))
                                 )
                        ),
                        tabPanel("Download"
@@ -111,9 +106,11 @@ dashboardPage(
               h2("About"),
               fluidRow(
                 box(width = 12
-                    , p("Predecessor (built by", strong("as"), "):"
+                    , p("This dashboard is a simplified version of the actual dashboard I made at work and only contains dummy data. The aim of this Shiny dashboard is to help non-technical people get the data they need, quickly."
                         , br()
-                        , a("Indonesia FinDash 1.0", href = "www.github.com")
+                        , a("My Github (all of my projects are in private repositories)", href = "https://github.com/lawrencekurniawan")
+                        , br()
+                        , "I've been coding in R for work since March 2017 but have only really used Github since November 2017."
                       )
                 )
               )

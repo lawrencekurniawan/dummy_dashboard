@@ -32,9 +32,8 @@ dashboardPage(
                        tabPanel("Options",
                              fluidRow(
                                column(width = 4, uiOutput('snap_select_metric')),
-                               column(width = 8, uiOutput('snap_select_instrument'))),
-                             fluidRow(
-                               column(width = 12, uiOutput('snap_select_date'))),
+                               column(width = 4, uiOutput('snap_select_instrument')),
+                               column(width = 4, uiOutput('snap_select_date'))),
                              fluidRow(
                                column(width = 12, actionButton("btn_snap", "Go")))
                         ),
@@ -68,11 +67,9 @@ dashboardPage(
                        width = 12,
                        tabPanel("Options",
                                 fluidRow(
-                                  column(width = 7, uiOutput('me_select_metric')),
-                                  column(width = 5, uiOutput('me_select_date'))
-                                ),
-                                fluidRow(
-                                  column(width = 12, uiOutput('me_select_instrument'))
+                                  column(width = 4, uiOutput('me_select_metric')),
+                                  column(width = 4, uiOutput('me_select_instrument')),
+                                  column(width = 4, uiOutput('me_select_date'))
                                 ),
                                 fluidRow(
                                   column(width = 12, actionButton("btn_me", "Go"))

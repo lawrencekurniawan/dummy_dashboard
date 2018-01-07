@@ -88,6 +88,11 @@ shinyServer(function(input, output) {
   ## snapshot
   ########################################################################################################
   
+  hyphenated_selected_metrics <- reactive({
+    group_hyphenate(input$snap_select_metric)
+  }
+  )
+  
   ss_period.dt <- reactive({
       portfolio %>%
         filter(date >= ymd(input$snap_select_date[[1]]),
@@ -102,11 +107,6 @@ shinyServer(function(input, output) {
         ss_period.dt() %>%
           filter(instrument %in% input$snap_select_instrument)
       }
-    }
-  )
-  
-  hyphenated_selected_metrics <- reactive({
-      group_hyphenate(input$snap_select_metric)
     }
   )
   
@@ -136,6 +136,10 @@ shinyServer(function(input, output) {
   
   output$snap_table <- 
     DT::renderDataTable({
+      validate(
+        need(!is.null(hyphenated_selected_metrics()), "Loading..")
+      )
+      
       DT2(data = ss_spark.dt(),
           first_col = "Instrument",
           caption = paste("'Last' subcolumn: date beginning", max(portfolio$date)),
@@ -160,6 +164,10 @@ shinyServer(function(input, output) {
     }
   )
   
+  #-----------------
+  #chart
+  #-----------------
+  
   formula_filtered <- reactive({
       formula_rds %>% 
         filter(metric == hyphenated_selected_me_metric())
@@ -177,6 +185,76 @@ shinyServer(function(input, output) {
           rename_(metric = names(.)[[3]])
       }
     })
+  
+  me_tooltip_unit <- reactive({ #<b>{point.y:', me_tooltip_unit, "</b> <br>"
+    hc_unit(hyphenated_selected_me_metric()
+            , percentage_unit = ",.1f}%"
+            , dollar_unit = ",.2f} USD"
+            , full_number_unit = ",.0f}"
+            , two_digits_unit = ",.2f}")
+  })
+  
+  me_yaxis_unit <- reactive({ #<b>{point.y:', me_tooltip_unit, "</b> <br>"
+    hc_unit(hyphenated_selected_me_metric()
+            , percentage_unit = ",.0f}%"
+            , dollar_unit = ",.2f} USD"
+            , full_number_unit = ",.0f}"
+            , two_digits_unit = ",.2f}")
+  })
+  
+  output$chart_maker <- 
+    renderHighchart({
+      validate(
+        need(!is.null(hyphenated_selected_me_metric()), "Loading..")
+      )
+      #Non-ratio metrics:
+      #", str_c(lapply(names(portfolio)[!(names(portfolio) %in% append(ratio_metrics, c("date", "instrument")))], function(metric) {dehyphenate(metric)}), collapse = ", ")))
+      #        )
+      if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+        #formula_filtered <- formula %>% filter(metric == hyphenated_selected_me_metric())
+        
+        data <- m_expl_metric_instrument_for_chart.dt() %>%
+          group_by(date, instrument) %>%
+          summarise(!!!(
+            formula_filtered()$constituents %>%
+              unlist() %>% # output example: c("completed_trips", "request")
+              lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
+              setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
+          ))
+        
+        if(hyphenated_selected_me_metric() %in% percentage_metrics) {
+          data <- data %>%
+            mutate(metric = !!!(parse_quosure(paste(formula_filtered()$formula, "* 100"))))
+        } else {
+          data <- data %>%
+            mutate(metric = !!!(parse_quosure(formula_filtered()$formula)))
+        }
+        
+        
+      } else {
+        data <- m_expl_metric_instrument_for_chart.dt() %>% 
+          group_by(date, instrument) %>%
+          summarise(metric = sum(metric, na.rm = T))
+      }
+      
+      highchart() %>%
+        hc_chart(zoomType = "x") %>%
+        hc_title(text = dehyphenate(hyphenated_selected_me_metric())) %>%
+        hc_add_series(data, "line", hcaes(x = date, y = metric, group = instrument)) %>%
+        hc_xAxis(type = "datetime", dateTimeLabelFormats = list(day = '%d of %b')) %>%
+        hc_tooltip(crosshairs = T
+                   , shared = T
+                   , pointFormat = paste0('<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y:', me_tooltip_unit(), "</b> <br>")
+        ) %>%
+        hc_subtitle(text = list('Highlight along the x-axis to zoom; Click Legends to enable/disable')) %>%
+        hc_yAxis(title = list(text = dehyphenate(hyphenated_selected_me_metric())),
+                 labels = list(format = paste0("{value:", me_yaxis_unit())))
+      
+    })
+  
+  #-----------------
+  #data table
+  #-----------------
   
   m_expl_metric_period.dt <- reactive({
       if(hyphenated_selected_me_metric() %in% ratio_metrics) {
@@ -225,7 +303,9 @@ shinyServer(function(input, output) {
       })
     
     m_expl_wide_total.dt <- reactive({ #creates df with columns: instrument, Average, date1, date2, ...., date n.
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      req(m_expl_mp_wide.dt())  
+      
+      if(hyphenated_selected_me_metric() %in% ratio_metrics) {
           m_expl_mp_wide.dt() %>%
             inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
             select(instrument, Average, everything())  
@@ -307,6 +387,10 @@ shinyServer(function(input, output) {
     
   output$me_table <- 
     DT::renderDataTable({
+      validate(
+        need(!is.null(hyphenated_selected_me_metric()), "Loading..")
+      )
+      
       dt <- datatable(data.table(m_expl_final.dt())
                 , rownames = F
                 , caption = paste0("Showing: ", dehyphenate(hyphenated_selected_me_metric()))
@@ -368,68 +452,5 @@ shinyServer(function(input, output) {
       
       return(dt)
     }, server = FALSE)
-  
-  me_tooltip_unit <- reactive({ #<b>{point.y:', me_tooltip_unit, "</b> <br>"
-    hc_unit(hyphenated_selected_me_metric()
-            , percentage_unit = ",.1f}%"
-            , dollar_unit = ",.2f} USD"
-            , full_number_unit = ",.0f}"
-            , two_digits_unit = ",.2f}")
-  })
-  
-  me_yaxis_unit <- reactive({ #<b>{point.y:', me_tooltip_unit, "</b> <br>"
-    hc_unit(hyphenated_selected_me_metric()
-            , percentage_unit = ",.0f}%"
-            , dollar_unit = ",.2f} USD"
-            , full_number_unit = ",.0f}"
-            , two_digits_unit = ",.2f}")
-  })
-  
-  output$chart_maker <- 
-      renderHighchart({
-#Non-ratio metrics:
-#", str_c(lapply(names(portfolio)[!(names(portfolio) %in% append(ratio_metrics, c("date", "instrument")))], function(metric) {dehyphenate(metric)}), collapse = ", ")))
-#        )
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          #formula_filtered <- formula %>% filter(metric == hyphenated_selected_me_metric())
-          
-          data <- m_expl_metric_instrument_for_chart.dt() %>%
-            group_by(date, instrument) %>%
-            summarise(!!!(
-              formula_filtered()$constituents %>%
-                unlist() %>% # output example: c("completed_trips", "request")
-                lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
-                setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
-            ))
-          
-          if(hyphenated_selected_me_metric() %in% percentage_metrics) {
-            data <- data %>%
-              mutate(metric = !!!(parse_quosure(paste(formula_filtered()$formula, "* 100"))))
-          } else {
-            data <- data %>%
-              mutate(metric = !!!(parse_quosure(formula_filtered()$formula)))
-          }
-            
-            
-        } else {
-          data <- m_expl_metric_instrument_for_chart.dt() %>% 
-            group_by(date, instrument) %>%
-            summarise(metric = sum(metric, na.rm = T))
-        }
-        
-        highchart() %>%
-          hc_chart(zoomType = "x") %>%
-          hc_title(text = dehyphenate(hyphenated_selected_me_metric())) %>%
-          hc_add_series(data, "line", hcaes(x = date, y = metric, group = instrument)) %>%
-          hc_xAxis(type = "datetime", dateTimeLabelFormats = list(day = '%d of %b')) %>%
-          hc_tooltip(crosshairs = T
-                     , shared = T
-                     , pointFormat = paste0('<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y:', me_tooltip_unit(), "</b> <br>")
-                     ) %>%
-          hc_subtitle(text = list('Highlight along the x-axis to zoom; Click Legends to enable/disable')) %>%
-          hc_yAxis(title = list(text = dehyphenate(hyphenated_selected_me_metric())),
-                   labels = list(format = paste0("{value:", me_yaxis_unit())))
-        
-      })
   
 })

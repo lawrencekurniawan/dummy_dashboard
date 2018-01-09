@@ -4,10 +4,10 @@
 sysenv <- Sys.getenv()
 
 if('XPC_SERVICE_NAME' %in% names(unlist(sysenv))) {
-  #if (sysenv[['UDEPLOY_DEPLOYMENT_NAME']] %in% c('production', 'staging')) {
+  if (sysenv[['UDEPLOY_DEPLOYMENT_NAME']] %in% c('production', 'staging')) {
     savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
     filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
-  #}
+  }
 } else {
   #filepath <- "/home/rstudio/ShinyApps/dummy_dashboard/"
   #savepath <- "/home/rstudio/ShinyApps/dummy_dashboard/data/"
@@ -72,9 +72,9 @@ group_hyphenate <- function(list) {
 ratio_metrics <- formula_rds$metric
 
 # 2nd metric classification (mutually exclusive: each metric only belongs to 1 group)
-percentage_metrics <- c("percentage_return")
+percentage_metrics <- c("percentage_daily_growth")
 
-dollar_metrics <- c("ask_price", "bid_price", "price_difference", "mid_price", "return", "cumulative_return")
+dollar_metrics <- c("open", "high", "low", "close", "adjusted", "daily_growth")
 
 full_number_metrics <- c("volume")
 

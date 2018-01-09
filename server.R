@@ -43,12 +43,12 @@ shinyServer(function(input, output) {
                    selected = instrument_list,
                    width = '100%')
   })
-
+  
   output$snap_select_date <- renderUI({
     dateRangeInput("snap_select_date",
                    label = h4("Period"),
-                   start = today() - 7 * 4, #8 weeks ago
-                   end = today(),
+                   start = as.Date("2017-12-25"), #today() - 7 * 4, #8 weeks ago
+                   end = as.Date("2018-01-09"), #today(),
                    width = '100%')
   })
   
@@ -59,6 +59,7 @@ shinyServer(function(input, output) {
   output$me_select_metric <- renderUI({
     selectInput("me_select_metric", label = h4("Select Metric:"),
                 choices = dehyphenated_snap_metrics,
+                selected = "Volume",
                 multiple = F,
                 width = '100%'
     )
@@ -76,8 +77,8 @@ shinyServer(function(input, output) {
   output$me_select_date <- renderUI({
     dateRangeInput("me_select_date",
                    label = h4("Select Period:"),
-                   start = today() - 7*5,
-                   end = today(),
+                   start = as.Date("2017-12-25"), #today() - 7*5,
+                   end = as.Date("2018-01-09"), #today(),
                    width = '100%')
   })
   
@@ -94,20 +95,20 @@ shinyServer(function(input, output) {
   )
   
   ss_period.dt <- reactive({
-      portfolio %>%
-        filter(date >= ymd(input$snap_select_date[[1]]),
-               date <= ymd(input$snap_select_date[[2]]))
-    }
+    portfolio %>%
+      filter(date >= ymd(input$snap_select_date[[1]]),
+             date <= ymd(input$snap_select_date[[2]]))
+  }
   )
   
   ss_instrument.dt <- reactive({
-      if(length(input$snap_select_instrument) == length(instrument_list)) {
-        ss_period.dt()
-      } else {
-        ss_period.dt() %>%
-          filter(instrument %in% input$snap_select_instrument)
-      }
+    if(length(input$snap_select_instrument) == length(instrument_list)) {
+      ss_period.dt()
+    } else {
+      ss_period.dt() %>%
+        filter(instrument %in% input$snap_select_instrument)
     }
+  }
   )
   
   output$marketplace_snapshot_download <- downloadHandler(
@@ -121,18 +122,18 @@ shinyServer(function(input, output) {
   )
   
   ss_spark.dt <- reactive({
-      req(input$snap_select_metric)
-      validate(
-        need(length(input$snap_select_metric) > 1, "Need 2 or more metrics selected")
-      )
-      
-      ss_instrument.dt() %>%
-        dplyr::select(date, instrument, hyphenated_selected_metrics()) %>% 
-        group_by(instrument) %>%
-        summarise_at(.vars = hyphenated_selected_metrics(),
-                     .funs = c(Last = last, DoD = dod_change, Trend = paste2)) %>% #the name of funs here (eg Last, DoD) have to be the same as subheader_columns because each metric will have the colname changed to metric_Last/metric_DoD/metric_Trend.
-        dplyr::select(instrument, unlist(lapply(hyphenated_selected_metrics(), function(pattern) {str_subset(names(.), paste0("^", pattern))} ))) #lapply function sorts the columns by order of appearance in the input$snap_select_metric
-    })
+    req(input$snap_select_metric)
+    validate(
+      need(length(input$snap_select_metric) > 1, "Need 2 or more metrics selected")
+    )
+    
+    ss_instrument.dt() %>%
+      dplyr::select(date, instrument, hyphenated_selected_metrics()) %>% 
+      group_by(instrument) %>%
+      summarise_at(.vars = hyphenated_selected_metrics(),
+                   .funs = c(Last = last, DoD = dod_change, Trend = paste2)) %>% #the name of funs here (eg Last, DoD) have to be the same as subheader_columns because each metric will have the colname changed to metric_Last/metric_DoD/metric_Trend.
+      dplyr::select(instrument, unlist(lapply(hyphenated_selected_metrics(), function(pattern) {str_subset(names(.), paste0("^", pattern))} ))) #lapply function sorts the columns by order of appearance in the input$snap_select_metric
+  })
   
   output$snap_table <- 
     DT::renderDataTable({
@@ -142,7 +143,7 @@ shinyServer(function(input, output) {
       
       DT2(data = ss_spark.dt(),
           first_col = "Instrument",
-          caption = paste("'Last' subcolumn: date beginning", max(portfolio$date)),
+          caption = paste("'Last' subcolumn:", max(portfolio$date)),
           subheader_columns = c("Last", "DoD", "Trend"),
           reverse_color_columns = c(),
           two_digits_columns = two_digits_metrics,
@@ -160,8 +161,8 @@ shinyServer(function(input, output) {
   ################################################################################################
   
   hyphenated_selected_me_metric <- reactive({
-      group_hyphenate(input$me_select_metric)
-    }
+    group_hyphenate(input$me_select_metric)
+  }
   )
   
   #-----------------
@@ -169,22 +170,22 @@ shinyServer(function(input, output) {
   #-----------------
   
   formula_filtered <- reactive({
-      formula_rds %>% 
-        filter(metric == hyphenated_selected_me_metric())
-    }
+    formula_rds %>% 
+      filter(metric == hyphenated_selected_me_metric())
+  }
   ) 
   
   m_expl_metric_instrument_for_chart.dt <- reactive({
-      if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-        portfolio %>%
-          filter(instrument %in% input$me_select_instrument) 
-      } else {
-        portfolio %>%
-          filter(instrument %in% input$me_select_instrument) %>%
-          select(date, instrument, hyphenated_selected_me_metric()) %>%
-          rename_(metric = names(.)[[3]])
-      }
-    })
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      portfolio %>%
+        filter(instrument %in% input$me_select_instrument) 
+    } else {
+      portfolio %>%
+        filter(instrument %in% input$me_select_instrument) %>%
+        select(date, instrument, hyphenated_selected_me_metric()) %>%
+        rename_(metric = names(.)[[3]])
+    }
+  })
   
   me_tooltip_unit <- reactive({ #<b>{point.y:', me_tooltip_unit, "</b> <br>"
     hc_unit(hyphenated_selected_me_metric()
@@ -257,124 +258,124 @@ shinyServer(function(input, output) {
   #-----------------
   
   m_expl_metric_period.dt <- reactive({
-      if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-        portfolio %>%
-          filter(instrument %in% input$me_select_instrument,
-                 date >= ymd(input$me_select_date[[1]]),
-                 date <= ymd(input$me_select_date[[2]])) 
-      } else {
-        portfolio %>%
-          filter(instrument %in% input$me_select_instrument,
-                 date >= ymd(input$me_select_date[[1]]),
-                 date <= ymd(input$me_select_date[[2]])) %>%
-          select(date, instrument, hyphenated_selected_me_metric()) #may not need this line.
-      }
-    })
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      portfolio %>%
+        filter(instrument %in% input$me_select_instrument,
+               date >= ymd(input$me_select_date[[1]]),
+               date <= ymd(input$me_select_date[[2]])) 
+    } else {
+      portfolio %>%
+        filter(instrument %in% input$me_select_instrument,
+               date >= ymd(input$me_select_date[[1]]),
+               date <= ymd(input$me_select_date[[2]])) %>%
+        select(date, instrument, hyphenated_selected_me_metric()) #may not need this line.
+    }
+  })
   
   m_expl_mp_wide.dt <- reactive({
-      m_expl_metric_period.dt() %>%
-        dcast(instrument ~ date, value.var = hyphenated_selected_me_metric())#, fun.aggregate = mean) #fun.aggregate aggregates the values if there are multiple values in 
-    }) #%>%
+    m_expl_metric_period.dt() %>%
+      dcast(instrument ~ date, value.var = hyphenated_selected_me_metric())#, fun.aggregate = mean) #fun.aggregate aggregates the values if there are multiple values in 
+  }) #%>%
   #coalesce(., list(0L)) #remove all NAs
   
   # summarise all the ratio metrics using 'mean' instead of sum
-    m_expl_instrument_total.dt <- reactive({
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          #m_expl_metric_period.dt() %>%
-          #  group_by(instrument) %>%
-          #  summarise(Average = mean(!!sym(hyphenated_selected_me_metric()), na.rm = T)) #mean is a base function and doesn't understand character string as a variable name. input$me_select_metric will give a character string eg "rider_first_trip". So we have to turn the string to symbol (using sym function from rlang package) and then unquote the symbol
-          
-          m_expl_metric_period.dt() %>%
-            group_by(instrument) %>%
-            summarise(!!!(
-              formula_filtered()$constituents %>%
-                unlist() %>% # output example: c("completed_trips", "request")
-                lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
-                setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
-            )) %>%
-            mutate(Average = !!!(parse_quosure(formula_filtered()$formula))) %>%
-            select(instrument, Average)
-          
-        } else {
-          m_expl_metric_period.dt() %>%
-            group_by(instrument) %>%
-            summarise(Total = sum(!!sym(hyphenated_selected_me_metric()), na.rm = T))
-        }
-      })
-    
-    m_expl_wide_total.dt <- reactive({ #creates df with columns: instrument, Average, date1, date2, ...., date n.
-      req(m_expl_mp_wide.dt())  
+  m_expl_instrument_total.dt <- reactive({
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      #m_expl_metric_period.dt() %>%
+      #  group_by(instrument) %>%
+      #  summarise(Average = mean(!!sym(hyphenated_selected_me_metric()), na.rm = T)) #mean is a base function and doesn't understand character string as a variable name. input$me_select_metric will give a character string eg "rider_first_trip". So we have to turn the string to symbol (using sym function from rlang package) and then unquote the symbol
       
-      if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          m_expl_mp_wide.dt() %>%
-            inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
-            select(instrument, Average, everything())  
-        } else {
-          m_expl_mp_wide.dt() %>%
-            inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
-            select(instrument, Total, everything()) 
-        }
-      }) 
+      m_expl_metric_period.dt() %>%
+        group_by(instrument) %>%
+        summarise(!!!(
+          formula_filtered()$constituents %>%
+            unlist() %>% # output example: c("completed_trips", "request")
+            lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
+            setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
+        )) %>%
+        mutate(Average = !!!(parse_quosure(formula_filtered()$formula))) %>%
+        select(instrument, Average)
+      
+    } else {
+      m_expl_metric_period.dt() %>%
+        group_by(instrument) %>%
+        summarise(Total = sum(!!sym(hyphenated_selected_me_metric()), na.rm = T))
+    }
+  })
+  
+  m_expl_wide_total.dt <- reactive({ #creates df with columns: instrument, Average, date1, date2, ...., date n.
+    req(m_expl_mp_wide.dt())  
     
-    m_expl_ratio_metrics_average_by_date <- reactive({ #creates df with columns: date, {constituent1}, {constituent2}, ...., Average, instrument (filled with "Average" values)
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          m_expl_metric_period.dt() %>%
-            filter(instrument %in% input$me_select_instrument) %>% #only calculate the dately average for selected cities
-            group_by(date) %>%
-            summarise(!!!(
-              formula_filtered()$constituents %>%
-                unlist() %>% # output example: c("completed_trips", "request")
-                lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
-                setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
-            )) %>%
-            mutate(Average = (!!!(parse_quosure(formula_filtered()$formula))),
-                   instrument = "Average") 
-        } else {
-          NULL
-        }
-    })
-    
-    m_expl_ratio_metrics_average_final_value <- reactive({ #creates 1x1 df with columns: instrument, Average
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          m_expl_ratio_metrics_average_by_date() %>%
-            group_by(instrument) %>%
-            summarise(!!!(
-              formula_filtered()$constituents %>%
-                unlist() %>% # output example: c("completed_trips", "request")
-                lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
-                setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
-            )) %>%
-            mutate(Average = !!!(parse_quosure(formula_filtered()$formula))) %>%
-            dplyr::select(instrument, Average)
-          
-        } else {
-          NULL
-        }
-      })
-    
-    m_expl_nat_total.dt <- reactive({
-        if(hyphenated_selected_me_metric() %in% ratio_metrics) {
-          m_expl_ratio_metrics_average_by_date() %>%
-            dcast(instrument ~ date, value.var = "Average") %>%
-            inner_join(m_expl_ratio_metrics_average_final_value(), by = "instrument")
-          
-          
-        } else {
-          m_expl_wide_total.dt() %>%
-            melt(id.vars = c("instrument")) %>%
-            group_by(variable) %>% #variable = date
-            summarise(Total = sum(value, na.rm = T)) %>% #value = 
-            spread(variable, Total) %>%
-            mutate(instrument = "Total") %>%
-            select(instrument, everything()) 
-        }
-      })
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      m_expl_mp_wide.dt() %>%
+        inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
+        select(instrument, Average, everything())  
+    } else {
+      m_expl_mp_wide.dt() %>%
+        inner_join(m_expl_instrument_total.dt(), by = "instrument") %>%
+        select(instrument, Total, everything()) 
+    }
+  }) 
+  
+  m_expl_ratio_metrics_average_by_date <- reactive({ #creates df with columns: date, {constituent1}, {constituent2}, ...., Average, instrument (filled with "Average" values)
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      m_expl_metric_period.dt() %>%
+        filter(instrument %in% input$me_select_instrument) %>% #only calculate the dately average for selected cities
+        group_by(date) %>%
+        summarise(!!!(
+          formula_filtered()$constituents %>%
+            unlist() %>% # output example: c("completed_trips", "request")
+            lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
+            setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
+        )) %>%
+        mutate(Average = (!!!(parse_quosure(formula_filtered()$formula))),
+               instrument = "Average") 
+    } else {
+      NULL
+    }
+  })
+  
+  m_expl_ratio_metrics_average_final_value <- reactive({ #creates 1x1 df with columns: instrument, Average
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      m_expl_ratio_metrics_average_by_date() %>%
+        group_by(instrument) %>%
+        summarise(!!!(
+          formula_filtered()$constituents %>%
+            unlist() %>% # output example: c("completed_trips", "request")
+            lapply(function(constituent) {parse_quosure(glue("sum({constituent}, na.rm = T)"))}) %>% #output example: sum(completed_trips, na.rm =T)
+            setNames(formula_filtered()$constituents %>% unlist()) #creates names for the summarised metrics, eg completed_trips, request
+        )) %>%
+        mutate(Average = !!!(parse_quosure(formula_filtered()$formula))) %>%
+        dplyr::select(instrument, Average)
+      
+    } else {
+      NULL
+    }
+  })
+  
+  m_expl_nat_total.dt <- reactive({
+    if(hyphenated_selected_me_metric() %in% ratio_metrics) {
+      m_expl_ratio_metrics_average_by_date() %>%
+        dcast(instrument ~ date, value.var = "Average") %>%
+        inner_join(m_expl_ratio_metrics_average_final_value(), by = "instrument")
+      
+      
+    } else {
+      m_expl_wide_total.dt() %>%
+        melt(id.vars = c("instrument")) %>%
+        group_by(variable) %>% #variable = date
+        summarise(Total = sum(value, na.rm = T)) %>% #value = 
+        spread(variable, Total) %>%
+        mutate(instrument = "Total") %>%
+        select(instrument, everything()) 
+    }
+  })
   
   m_expl_final.dt <- reactive({
-      m_expl_wide_total.dt() %>%
-        dplyr::union_all(m_expl_nat_total.dt()) %>%
-        rename(Instrument = instrument)
-    })
+    m_expl_wide_total.dt() %>%
+      dplyr::union_all(m_expl_nat_total.dt()) %>%
+      rename(Instrument = instrument)
+  })
   
   output$metric_explorer_download <- downloadHandler(
     filename = #function() {
@@ -384,7 +385,7 @@ shinyServer(function(input, output) {
       write.csv(m_expl_final.dt(), file, row.names = F)
     }
   )
-    
+  
   output$me_table <- 
     DT::renderDataTable({
       validate(
@@ -392,14 +393,14 @@ shinyServer(function(input, output) {
       )
       
       dt <- datatable(data.table(m_expl_final.dt())
-                , rownames = F
-                , caption = paste0("Showing: ", dehyphenate(hyphenated_selected_me_metric()))
-                , options = list(
-                  pageLength = nrow(m_expl_final.dt())
-                  , dom = "t"
-                  , autoWidth = T
-                  , scrollX = T
-                ))
+                      , rownames = F
+                      , caption = paste0("Showing: ", dehyphenate(hyphenated_selected_me_metric()))
+                      , options = list(
+                        pageLength = nrow(m_expl_final.dt())
+                        , dom = "t"
+                        , autoWidth = T
+                        , scrollX = T
+                      ))
       
       if(hyphenated_selected_me_metric() %in% ratio_metrics) {
         summary_type <- "Average"
@@ -408,15 +409,15 @@ shinyServer(function(input, output) {
       }  
       
       dt <- dt %>%
-            formatStyle(
-              "Instrument"
-              , target = 'row'
-              , backgroundColor = styleEqual(summary_type, 'orange')
-            ) %>%
-            formatStyle(
-              summary_type
-              , backgroundColor = 'orange'
-            )
+        formatStyle(
+          "Instrument"
+          , target = 'row'
+          , backgroundColor = styleEqual(summary_type, 'orange')
+        ) %>%
+        formatStyle(
+          summary_type
+          , backgroundColor = 'orange'
+        )
       
       if(hyphenated_selected_me_metric() %in% percentage_metrics) {
         dt <- dt %>%

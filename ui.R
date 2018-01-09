@@ -13,15 +13,16 @@ dashboardPage(
       div(
         style = "padding: 10px; width = 200px;",
         strong(p(style = "color:white;", "Lawrence Kurniawan Wong")),
-        p(style = "color:white;", "lawrencekurniawan@gmail.com")
+        p(style = "color:white;", "lawrencekurniawan@gmail.com"),
+        p(style = "color:white;", "Application Number: 10590995")
       )
     )
   ),
   
   dashboardBody(
-      #########
-      # SNAPSHOT
-      ######### 
+    #########
+    # SNAPSHOT
+    ######### 
     tabItems(
       tabItem(tabName = "snapshot",
               
@@ -30,19 +31,19 @@ dashboardPage(
                        side = "right",
                        width = 12,
                        tabPanel("Options",
-                             fluidRow(
-                               column(width = 4, uiOutput('snap_select_metric')),
-                               column(width = 4, uiOutput('snap_select_instrument')),
-                               column(width = 4, uiOutput('snap_select_date')))
-                        ),
-                        tabPanel("Download"
-                                 , p("Click the button below to get the raw data from currently shown information.")
-                                 , p("If you get an error, please make sure you have clicked 'Go' button in the 'Options' tab.")
-                                 , downloadButton("snapshot_download", "Download")
-                        ),
-                        tabPanel("About",
-                                 p(paste("Last updated:", with_tz(file.mtime(paste0(savepath, 'portfolio.rds')), tzone = "Asia/Jakarta"), "GMT+7"))
-                        )
+                                fluidRow(
+                                  column(width = 4, uiOutput('snap_select_metric')),
+                                  column(width = 4, uiOutput('snap_select_instrument')),
+                                  column(width = 4, uiOutput('snap_select_date')))
+                       ),
+                       tabPanel("Download"
+                                , p("Click the button below to get the raw data from currently shown information.")
+                                , p("If you get an error, please make sure you have clicked 'Go' button in the 'Options' tab.")
+                                , downloadButton("snapshot_download", "Download")
+                       ),
+                       tabPanel("About",
+                                p(paste("Last updated:", with_tz(file.mtime(paste0(savepath, 'portfolio.rds')), tzone = "Asia/Jakarta"), "GMT+7"))
+                       )
                 )
               ),
               
@@ -100,21 +101,23 @@ dashboardPage(
       #######
       ####### ABOUT
       #######
-  
+      
       tabItem(tabName = "about",
               
               h2("About"),
               fluidRow(
                 box(width = 12
-                    , p("This dashboard is a simplified version of the actual dashboard I made at work and only contains dummy data. The aim of this Shiny dashboard is to help non-technical people get the data they need, quickly."
+                    , p("This dashboard is a simplified version of the actual one I made at work and only contains dummy data from Yahoo Finance (pulled using quantmod package). The aim of this Shiny dashboard is to help non-technical people get the data they need quickly and without having to write a single line of SQL code."
                         , br()
-                        , a("My Github (all of my projects are in private repositories)", href = "https://github.com/lawrencekurniawan")
                         , br()
-                        , "I've been coding in R for work since March 2017 but have only really used Github since November 2017."
-                      )
+                        , a("My Github (all of my work projects are in private repositories due to work policy)", href = "https://github.com/lawrencekurniawan")
+                        , br()
+                        , br()
+                        , "I've been coding in R for work since March 2017 and Github since November 2017."
+                    )
                 )
               )
       )
     )
   )
-  )
+)

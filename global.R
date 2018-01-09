@@ -4,10 +4,10 @@
 sysenv <- Sys.getenv()
 
 if('XPC_SERVICE_NAME' %in% names(unlist(sysenv))) {
-  if (sysenv[['UDEPLOY_DEPLOYMENT_NAME']] %in% c('production', 'staging')) {
-    savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
-    filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
-  }
+  #if (sysenv[['UDEPLOY_DEPLOYMENT_NAME']] %in% c('production', 'staging')) {
+  savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
+  filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
+  #}
 } else {
   #filepath <- "/home/rstudio/ShinyApps/dummy_dashboard/"
   #savepath <- "/home/rstudio/ShinyApps/dummy_dashboard/data/"

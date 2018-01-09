@@ -3,21 +3,36 @@
 
 sysenv <- Sys.getenv()
 
-savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
-filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
-
-packages <- c("shiny", "shinydashboard", #shiny
-  "dplyr", "lazyeval", "tidyr", "readr", "purrr", "stringr", "lubridate", "data.table", "sitools", "reshape2", "rlang", "glue", #data wrangling
-  "scales", "htmlwidgets", "highcharter", "DT", "sparkline", "htmltools", "RColorBrewer", "ggplot2") #JS bindings / data viz
-
-pkgs_not_installed <- packages[!(packages %in% installed.packages())]
-
-if(length(pkgs_not_installed > 0)) {
-  install.packages(pkgs = pkgs_not_installed,
-                   dependencies = TRUE)
+if('XPC_SERVICE_NAME' %in% names(unlist(sysenv))) {
+  #if (sysenv[['UDEPLOY_DEPLOYMENT_NAME']] %in% c('production', 'staging')) {
+    savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
+    filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
+  #}
+} else {
+  #filepath <- "/home/rstudio/ShinyApps/dummy_dashboard/"
+  #savepath <- "/home/rstudio/ShinyApps/dummy_dashboard/data/"
+  filepath <- "/home/rstudio/ShinyApps/dummy_dashboard/"
+  savepath <- "/home/rstudio/ShinyApps/dummy_dashboard/data/"
+  #.libPaths("/usr/local/lib/R/site-library")
+  #preloaded.pkgs <- c("shiny", "htmltools", "httpuv", "digest", "xtable", "mime", "R6", "Rcpp")
+  #sapply(preloaded.pkgs, unloadNamespace)
 }
 
-lapply(packages, require, character.only = TRUE)
+#savepath <- "~/Projects/dummy_dashboard/dummy_dashboard/data/"
+#filepath <- "~/Projects/dummy_dashboard/dummy_dashboard/"
+
+packages <- c("shiny", "shinydashboard", #shiny
+              "dplyr", "lazyeval", "tidyr", "readr", "purrr", "stringr", "lubridate", "data.table", "sitools", "reshape2", "rlang", "glue", #data wrangling
+              "scales", "htmlwidgets", "highcharter", "DT", "sparkline", "htmltools", "RColorBrewer", "ggplot2") #JS bindings / data viz
+
+#pkgs_not_installed <- packages[!(packages %in% installed.packages())]
+
+#if(length(pkgs_not_installed > 0)) {
+#  install.packages(pkgs = pkgs_not_installed,
+#                   dependencies = TRUE)
+#}
+
+lapply(packages, library, character.only = TRUE)
 
 #load formulas for calculation of ratio metrics
 load(paste0(savepath, 'formula_rds.rds'))
@@ -87,15 +102,15 @@ dod_change <- function(vector) {
 DT2 <- function(data, first_col, caption, subheader_columns, reverse_color_columns, two_digits_columns, full_number_columns, dollar_columns, percentage_columns, spark = F, spark_index, selected_metrics) {
   #reorder the data to match subheader_columns's order
   #if(length(subheader_columns) > 3) {
-    ordered <- lapply(selected_metrics, function(varname) {paste0(varname, "_", subheader_columns)}) %>% unlist
-    ordered <- ordered[ordered %in% names(data)]
-    
-    data <- dplyr::select(data, names(data)[1], ordered)
+  ordered <- lapply(selected_metrics, function(varname) {paste0(varname, "_", subheader_columns)}) %>% unlist
+  ordered <- ordered[ordered %in% names(data)]
+  
+  data <- dplyr::select(data, names(data)[1], ordered)
   #}
   
   #to be used inside 'sketch' object. creates a vector of subheader columns to be used for each metric selected by the user. eg: c("Last", "Dod", "Trend", "Last", "Dod", "Trend", "Per_Trip")
-    th_list_for_subheader_columns <- 
-        rep(subheader_columns, length(selected_metrics))
+  th_list_for_subheader_columns <- 
+    rep(subheader_columns, length(selected_metrics))
   
   #creating HTML table for the complex header
   sketch <-  
@@ -107,24 +122,24 @@ DT2 <- function(data, first_col, caption, subheader_columns, reverse_color_colum
           lapply(
             selected_metrics, 
             function(varname) {
-                th(colspan = length(subheader_columns),
-                   #varname
-                   dehyphenate(varname)
-                )
+              th(colspan = length(subheader_columns),
+                 #varname
+                 dehyphenate(varname)
+              )
             }
           )
         ),
         tr(lapply(th_list_for_subheader_columns, function(varname) {
           th(varname)
-          })
+        })
         )
       )
     ))
   
   select_subheader_columns <- function(metric_list, col_num = NULL) { #returns a list of columns with format like this: rider_first_trip_Last (if col_num = 1 and columns = c("Last", "Dod", "Trend"))
     lapply(metric_list, function(metric) {
-        paste0(metric, "_", subheader_columns[[col_num]])
-      }) %>%
+      paste0(metric, "_", subheader_columns[[col_num]])
+    }) %>%
       unlist()
   }
   
@@ -177,55 +192,55 @@ DT2 <- function(data, first_col, caption, subheader_columns, reverse_color_colum
     #seq(col_num, ncol(data), length(max_cols))
     str_which(names(data), subheader_columns[col_num])-1 #-1 because the indices will be used in javascript, and js is zero-indexed
   }
-
+  
   if (spark) {
     
-      line_string <- "type: 'line', 
-      lineColor: 'black', 
-      fillColor: '#ccc', 
-      highlightLineColor: 'orange', 
-      highlightSpotColor: 'orange', 
-      width : 50"
-      
-      #because this is javascript, it uses zero-indexing. therefore, 4 = column 5 in R.
-      cd <- list(list(targets = col_indices(col_num = spark_index), #indices of sparkline column 
-                      render = JS("function(data, type, full){ 
-                                  return '<span class = sparkSeries>' + data + '</span>' }"),
-                      orderable = F),
-                 list(targets = "_all",
-                      className = "dt-right")
-                 )
-      
-      cb <- JS(paste0("function (oSettings, json) {
-                      \n $('.sparkSeries:not(:has(canvas))')
-                      .sparkline('html', { ", line_string, " });
-                      \n}"), collapse = "")
-      
-      dt <- datatable(data.table(data), 
-                      rownames = FALSE, 
-                      container = sketch, 
-                      caption = caption,
-                      options = list(
-                        columnDefs = cd, 
-                        fnDrawCallback = cb, 
-                        scrollX = F, #no scroll. scroll setting is made in the ui. if made T, will mess up the table after you sort the last columns
-                        autoWidth = F, 
-                        dom = 't', 
-                        pageLength = nrow(data))) 
-  } else {
+    line_string <- "type: 'line', 
+    lineColor: 'black', 
+    fillColor: '#ccc', 
+    highlightLineColor: 'orange', 
+    highlightSpotColor: 'orange', 
+    width : 50"
+    
+    #because this is javascript, it uses zero-indexing. therefore, 4 = column 5 in R.
+    cd <- list(list(targets = col_indices(col_num = spark_index), #indices of sparkline column 
+                    render = JS("function(data, type, full){ 
+                                return '<span class = sparkSeries>' + data + '</span>' }"),
+                    orderable = F),
+               list(targets = "_all",
+                    className = "dt-right")
+    )
+    
+    cb <- JS(paste0("function (oSettings, json) {
+                    \n $('.sparkSeries:not(:has(canvas))')
+                    .sparkline('html', { ", line_string, " });
+                    \n}"), collapse = "")
+    
     dt <- datatable(data.table(data), 
                     rownames = FALSE, 
                     container = sketch, 
+                    caption = caption,
                     options = list(
-                      scrollX = T,
-                      autoWidth = T,
-                      columnDefs = list(
-                        list(width = "70px"
-                             , targets = c(0))
-                      ),
+                      columnDefs = cd, 
+                      fnDrawCallback = cb, 
+                      scrollX = F, #no scroll. scroll setting is made in the ui. if made T, will mess up the table after you sort the last columns
+                      autoWidth = F, 
                       dom = 't', 
-                      pageLength = nrow(data)))
-  }
+                      pageLength = nrow(data))) 
+} else {
+  dt <- datatable(data.table(data), 
+                  rownames = FALSE, 
+                  container = sketch, 
+                  options = list(
+                    scrollX = T,
+                    autoWidth = T,
+                    columnDefs = list(
+                      list(width = "70px"
+                           , targets = c(0))
+                    ),
+                    dom = 't', 
+                    pageLength = nrow(data)))
+}
   
   dt <- dt %>%
     formatCurrency(full_numbers, #for columns that have round numbers (eg trips)
@@ -265,4 +280,4 @@ DT2 <- function(data, first_col, caption, subheader_columns, reverse_color_colum
   else {
     dt
   }
-}
+  }
